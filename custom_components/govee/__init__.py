@@ -2,7 +2,7 @@
 import asyncio
 import logging
 
-from govee_api_laggat import Govee
+from govee_api import Govee
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
@@ -17,23 +17,16 @@ _LOGGER = logging.getLogger(__name__)
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
 # supported platforms
-PLATFORMS = ["light"]
-
-
-def setup(hass, config):
-    """This setup does nothing, we use the async setup."""
-    hass.states.set("govee.state", "setup called")
-    return True
+PLATFORMS = ["light", "sensor"]
 
 
 async def async_setup(hass: HomeAssistant, config: dict):
     """Set up the Govee component."""
-    hass.states.async_set("govee.state", "async_setup called")
     hass.data[DOMAIN] = {}
     return True
 
 
-def is_online(online: bool):
+def handle_online_changed(online: bool):
     """Log online/offline change."""
     msg = "API is offline."
     if online:
@@ -58,14 +51,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data[DOMAIN]["hub"] = hub
 
     # inform when api is offline/online
-    hub.events.online += is_online
+    hub.events.online += handle_online_changed
 
     # Verify that passed in configuration works
     _, err = await hub.get_devices()
     if err:
         _LOGGER.warning("Could not connect to Govee API: %s", err)
-        await hub.rate_limit_delay()
-        await async_unload_entry(hass, entry)
+        await hub.close()
         raise PlatformNotReady()
 
     for component in PLATFORMS:
@@ -93,13 +85,15 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     return unload_ok
 
 
-def _unload_component_entry(
+async def _unload_component_entry(
     hass: HomeAssistant, entry: ConfigEntry, component: str
 ) -> bool:
     """Unload an entry for a specific component."""
     success = False
     try:
-        success = hass.config_entries.async_forward_entry_unload(entry, component)
+        success = await hass.config_entries.async_forward_entry_unload(
+            entry, component
+        )
     except ValueError:
         # probably ValueError: Config entry was never loaded!
         return success

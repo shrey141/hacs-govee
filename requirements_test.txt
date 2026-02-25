@@ -5,7 +5,7 @@ coveralls
 dacite
 events
 flake8
-govee_api_laggat
+git+https://github.com/shrey141/python-govee-api.git#egg=govee_api
 homeassistant
 jinja2
 markupsafe

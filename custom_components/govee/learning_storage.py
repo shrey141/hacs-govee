@@ -4,7 +4,7 @@ from dataclasses import asdict
 import logging
 
 import dacite
-from govee_api_laggat import GoveeAbstractLearningStorage, GoveeLearnedInfo
+from govee_api import GoveeAbstractLearningStorage, GoveeLearnedInfo
 import yaml
 
 from homeassistant.util.yaml import load_yaml, save_yaml
@@ -14,7 +14,7 @@ LEARNING_STORAGE_YAML = "/govee_learning.yaml"
 
 
 class GoveeLearningStorage(GoveeAbstractLearningStorage):
-    """The govee_api_laggat library uses this to store learned information about lights."""
+    """The govee_api library uses this to store learned information about lights."""
 
     def __init__(self, config_dir, *args, **kwargs):
         """Get the config directory."""

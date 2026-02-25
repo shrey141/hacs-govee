@@ -12,6 +12,7 @@ from .ble import GoveeBle
 from .govee_dtos import GoveeDevice, GoveeSource
 from .learning_storage import (
     GoveeAbstractLearningStorage,
+    GoveeDailyStats,
     GoveeLearnedInfo,
 )
 
@@ -33,10 +34,10 @@ class Govee(object):
 
     async def __aenter__(self, *args, **kwargs):
         """Async context manager enter."""
-        # self._session = aiohttp.ClientSession()
         await self._scheduler_start()
         if self._api_key:
             self._api = await GoveeApi.create(self, self._api_key)
+        self._daily_stats = await self._learning_storage.read_daily_stats()
         return self
 
     async def __aexit__(self, *err):
@@ -72,6 +73,7 @@ class Govee(object):
         self._ignore_fields = self._get_empty_ignore_fields()
         self._devices = {}
         self._config_offline_is_off = None
+        self._daily_stats = GoveeDailyStats()
         self._learning_storage = learning_storage
         if not self._learning_storage:
             # use an internal learning storage as long as we run.
@@ -97,6 +99,19 @@ class Govee(object):
     def _utcnow(self):
         """Helper method to get utc now as seconds."""
         return datetime.timestamp(datetime.now())
+
+    @property
+    def daily_requests_made(self) -> int:
+        """Number of API requests made today (UTC)."""
+        return self._daily_stats.requests_made
+
+    async def _increment_daily_requests(self):
+        """Increment the daily request counter, resetting on UTC date rollover."""
+        today = datetime.utcnow().strftime("%Y-%m-%d")
+        if self._daily_stats.date != today:
+            self._daily_stats = GoveeDailyStats(date=today, requests_made=0)
+        self._daily_stats.requests_made += 1
+        await self._learning_storage.write_daily_stats(self._daily_stats)
 
     @property
     def rate_limit_total(self):

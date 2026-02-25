@@ -10,7 +10,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import DOMAIN
+from .const import DOMAIN, RATE_LIMIT_DAILY
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -84,6 +84,10 @@ class GoveeApiRateLimitSensor(SensorEntity):
         rate_limit_on = self._hub.rate_limit_on
         if not isinstance(rate_limit_on, str):
             attrs["rate_limit_on"] = rate_limit_on
+
+        daily_made = self._hub.daily_requests_made
+        attrs["daily_requests_made"] = daily_made
+        attrs["daily_requests_remaining"] = max(0, RATE_LIMIT_DAILY - daily_made)
 
         return attrs
 

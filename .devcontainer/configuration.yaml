@@ -42,7 +42,7 @@ logger:
   logs:
     homeassistant.components.govee: debug
     custom_components.govee: debug
-    govee_api_laggat: debug
+    govee_api: debug
     custom_components.hacs: warning
     homeassistant.components.discovery: debug
     homeassistant.components.zeroconf: debug

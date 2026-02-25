@@ -75,7 +75,7 @@ API:power_state
 API:online;HISTORY:online
 ```
 
-Sources are `API` and `HISTORY`. Attribute names match fields in the [GoveeDevice data class](https://github.com/LaggAt/python-govee-api/blob/master/govee_api_laggat/govee_dtos.py).
+Sources are `API` and `HISTORY`. Attribute names match fields in the [GoveeDevice data class](https://github.com/shrey141/python-govee-api/blob/master/govee_api/govee_dtos.py).
 
 A warning is logged on every poll while any attribute updates are disabled, to remind you this is a temporary workaround.
 
@@ -104,7 +104,7 @@ logger:
   default: warning
   logs:
     custom_components.govee: debug
-    govee_api_laggat: debug
+    govee_api: debug
 ```
 
 Then go to **Settings → System → Logs** and click **Load Full Logs**.

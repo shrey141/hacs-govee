@@ -111,6 +111,7 @@ class GoveeApi(object):
         try:
             async with request_lambda() as response:
                 self._govee._set_online(True)  # we got something, so we are online
+                await self._govee._increment_daily_requests()
                 self._track_rate_limit(response)
                 # return the async content manager response
                 yield response

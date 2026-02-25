@@ -1,9 +1,16 @@
 import logging
 from abc import abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, Optional
 
 _LOGGER = logging.getLogger(__name__)
+
+
+@dataclass
+class GoveeDailyStats:
+    """Tracks API requests made on a given UTC date."""
+    date: str = ""
+    requests_made: int = 0
 
 
 @dataclass
@@ -51,6 +58,13 @@ class GoveeAbstractLearningStorage(object):
         _LOGGER.warning(
             "Implement GoveeAbstractLearningStorage and overwrite write/read methods to persist and restore learned lamp properties."
         )
+
+    async def read_daily_stats(self) -> GoveeDailyStats:
+        """Read daily request stats. Override to persist across restarts."""
+        return GoveeDailyStats()
+
+    async def write_daily_stats(self, stats: GoveeDailyStats):
+        """Write daily request stats. Override to persist across restarts."""
 
 
 class GoveeNoLearningStorage(GoveeAbstractLearningStorage):

@@ -2,7 +2,7 @@
 import asyncio
 import logging
 
-from govee_api import Govee
+from .govee_api import Govee
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
@@ -44,7 +44,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     # Setup connection with devices/cloud
     hub = await Govee.create(
-        api_key, learning_storage=GoveeLearningStorage(hass.config.config_dir)
+        api_key, learning_storage=GoveeLearningStorage(hass, hass.config.config_dir)
     )
     # keep reference for disposing
     hass.data[DOMAIN] = {}

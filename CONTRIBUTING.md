@@ -7,40 +7,23 @@ Contributing to this project should be as easy and transparent as possible, whet
 - Submitting a fix
 - Proposing new features
 
-## Github is used for everything
+## GitHub is used for everything
 
-Github is used to host code, to track issues and feature requests, as well as accept pull requests.
+GitHub is used to host code, to track issues and feature requests, as well as accept pull requests.
 
 Pull requests are the best way to propose changes to the codebase.
 
 1. Fork the repo and create your branch from `master`.
 2. If you've changed something, update the documentation.
 3. Make sure your code lints (using black).
-4. Test you contribution (using tox).
+4. Test your contribution (using tox).
 5. Issue that pull request!
-
-### TODO Document: Work on library govee-api-laggat
-
-* this library is added as subtree in '.git-subtree/python-govee-api'
-
-```
-# how we added it:
-git subtree add --prefix .git-subtree/python-govee-api https://github.com/LaggAt/python-govee-api master
-
-# you may want to pull latest master:
-git subtree pull --prefix=.git-subtree/python-govee-api/ https://github.com/LaggAt/python-govee-api master
-
-# if you made changes to the library don't forget to push the changes to bug/feature branches there before doing a pull request:
-git subtree push --prefix=.git-subtree/python-govee-api/ https://github.com/LaggAt/python-govee-api feature/describe-your-feature
-
-```
-
 
 ## Any contributions you make will be under the MIT Software License
 
 In short, when you submit code changes, your submissions are understood to be under the same [MIT License](http://choosealicense.com/licenses/mit/) that covers the project. Feel free to contact the maintainers if that's a concern.
 
-## Report bugs using Github's [issues](../../issues)
+## Report bugs using GitHub's [issues](../../issues)
 
 GitHub issues are used to track public bugs.
 Report a bug by [opening a new issue](../../issues/new/choose); it's that easy!
@@ -57,22 +40,20 @@ Report a bug by [opening a new issue](../../issues/new/choose); it's that easy!
 - What actually happens
 - Notes (possibly including why you think this might be happening, or stuff you tried that didn't work)
 
-People *love* thorough bug reports. I'm not even kidding.
-
-## Use a Consistent Coding Style
+## Use a consistent coding style
 
 Use [black](https://github.com/ambv/black) to make sure the code follows the style.
 
 ## Test your code modification
 
-This custom component is based on [integration_blueprint template](https://github.com/custom-components/integration_blueprint).
+The repo includes a dev container for Visual Studio Code. With it you'll have a standalone Home Assistant instance running and configured via [`.devcontainer/configuration.yaml`](.devcontainer/configuration.yaml).
 
-It comes with development environment in a container, easy to launch
-if you use Visual Studio Code. With this container you will have a stand alone
-Home Assistant instance running and already configured with the included
-[`.devcontainer/configuration.yaml`](https://github.com/oncleben31/ha-pool_pump/blob/master/.devcontainer/configuration.yaml)
-file.
+Run tests with:
+
+```bash
+tox
+```
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under its MIT License.
+By contributing, you agree that your contributions will be licensed under the MIT License.

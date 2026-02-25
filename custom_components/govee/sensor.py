@@ -30,6 +30,7 @@ class GoveeApiRateLimitSensor(SensorEntity):
     _attr_has_entity_name = True
     _attr_icon = "mdi:speedometer"
     _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = "requests"
 
     def __init__(self, hub, title):
         """Initialize the rate limit sensor."""

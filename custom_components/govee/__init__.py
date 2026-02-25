@@ -26,7 +26,7 @@ async def async_setup(hass: HomeAssistant, config: dict):
     return True
 
 
-def is_online(online: bool):
+def handle_online_changed(online: bool):
     """Log online/offline change."""
     msg = "API is offline."
     if online:
@@ -51,14 +51,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data[DOMAIN]["hub"] = hub
 
     # inform when api is offline/online
-    hub.events.online += is_online
+    hub.events.online += handle_online_changed
 
     # Verify that passed in configuration works
     _, err = await hub.get_devices()
     if err:
         _LOGGER.warning("Could not connect to Govee API: %s", err)
-        await hub.rate_limit_delay()
-        await async_unload_entry(hass, entry)
+        await hub.close()
         raise PlatformNotReady()
 
     for component in PLATFORMS:

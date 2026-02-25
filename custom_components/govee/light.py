@@ -75,13 +75,6 @@ async def async_setup_entry(hass, entry, async_add_entities):
     # Add devices
     for device in hub.devices:
         add_entity(async_add_entities, hub, entry, coordinator, device)
-    # async_add_entities(
-    #     [
-    #         GoveeLightEntity(hub, entry.title, coordinator, device)
-    #         for device in hub.devices
-    #     ],
-    #     update_before_add=False,
-    # )
 
 
 def add_entity(async_add_entities, hub, entry, coordinator, device):
@@ -164,6 +157,7 @@ class GoveeLightEntity(LightEntity):
         self._title = title
         self._coordinator = coordinator
         self._device = device
+        self._unsub_listener = None
 
     @property
     def entity_registry_enabled_default(self):
@@ -202,6 +196,21 @@ class GoveeLightEntity(LightEntity):
             else:
                 color_mode.add(ColorMode.ONOFF)
         return color_mode
+
+    @property
+    def color_mode(self) -> ColorMode:
+        """Return the currently active color mode."""
+        modes = self.supported_color_modes
+        if len(modes) == 1:
+            return next(iter(modes))
+        # For multi-mode devices infer from current device state
+        if ColorMode.COLOR_TEMP in modes and self._device.color_temp:
+            return ColorMode.COLOR_TEMP
+        if ColorMode.HS in modes:
+            return ColorMode.HS
+        if ColorMode.BRIGHTNESS in modes:
+            return ColorMode.BRIGHTNESS
+        return ColorMode.ONOFF
 
     async def async_turn_on(self, **kwargs):
         """Turn device on."""
@@ -339,6 +348,11 @@ class GoveeLightEntity(LightEntity):
         """Return the brightness value."""
         # govee is reporting 0 to 254 - home assistant uses 1 to 255
         return self._device.brightness + 1
+
+    @property
+    def color_temp_kelvin(self):
+        """Return the current color temperature in Kelvin."""
+        return self._device.color_temp or None
 
     @property
     def min_color_temp_kelvin(self):

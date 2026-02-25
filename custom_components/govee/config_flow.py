@@ -99,8 +99,6 @@ class GoveeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 class GoveeOptionsFlowHandler(config_entries.OptionsFlow):
     """Handle options."""
 
-    VERSION = 1
-
     def __init__(self):
         """Initialize options flow."""
         self.options = {}

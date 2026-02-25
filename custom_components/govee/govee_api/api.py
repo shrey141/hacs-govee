@@ -3,6 +3,7 @@ import asyncio
 from contextlib import asynccontextmanager
 import logging
 import math
+import re
 from typing import Any, List, Tuple, Union
 
 from .govee_dtos import GoveeDevice, GoveeSource
@@ -112,7 +113,7 @@ class GoveeApi(object):
             async with request_lambda() as response:
                 self._govee._set_online(True)  # we got something, so we are online
                 await self._govee._increment_daily_requests()
-                self._track_rate_limit(response)
+                await self._track_rate_limit(response)
                 # return the async content manager response
                 yield response
         except aiohttp.ClientError as ex:
@@ -135,12 +136,21 @@ class GoveeApi(object):
 
             yield error_response("_api_request_internal: " + err)
 
-    def _track_rate_limit(self, response):
+    async def _track_rate_limit(self, response):
         """Track rate limiting."""
         if response.status == 429:
+            body = await response.text()
+            retry_seconds = 60  # conservative default
+            match = re.search(r'retry in (\d+) seconds', body, re.IGNORECASE)
+            if match:
+                retry_seconds = int(match.group(1))
+            self._limit_remaining = 0
+            self._limit_reset = self._govee._utcnow() + retry_seconds
             _LOGGER.warning(
-                "Rate limit exceeded, check if other devices also utilize the govee API"
+                "Rate limit exceeded (per-minute), waiting %ss before next request.",
+                retry_seconds,
             )
+            return
         limit_unknown = True
         if (
             _RATELIMIT_TOTAL in response.headers

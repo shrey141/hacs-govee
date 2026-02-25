@@ -8,7 +8,7 @@
   "homekit": {},
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/shrey141/hacs-govee/issues",
-  "requirements": ["git+https://github.com/shrey141/python-govee-api.git#egg=govee_api", "dacite==1.8.0"],
+  "requirements": ["dacite==1.8.0", "events>=0.3"],
   "ssdp": [],
   "version": "2025.1.1",
   "zeroconf": []

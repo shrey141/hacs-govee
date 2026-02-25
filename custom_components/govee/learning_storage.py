@@ -4,7 +4,7 @@ from dataclasses import asdict
 import logging
 
 import dacite
-from govee_api import GoveeAbstractLearningStorage, GoveeLearnedInfo
+from .govee_api import GoveeAbstractLearningStorage, GoveeLearnedInfo
 import yaml
 
 from homeassistant.util.yaml import load_yaml, save_yaml
@@ -16,16 +16,19 @@ LEARNING_STORAGE_YAML = "/govee_learning.yaml"
 class GoveeLearningStorage(GoveeAbstractLearningStorage):
     """The govee_api library uses this to store learned information about lights."""
 
-    def __init__(self, config_dir, *args, **kwargs):
+    def __init__(self, hass, config_dir, *args, **kwargs):
         """Get the config directory."""
         super().__init__(*args, **kwargs)
+        self._hass = hass
         self._config_dir = config_dir
 
     async def read(self):
         """Restore from yaml file."""
         learned_info = {}
         try:
-            learned_dict = load_yaml(self._config_dir + LEARNING_STORAGE_YAML)
+            learned_dict = await self._hass.async_add_executor_job(
+                load_yaml, self._config_dir + LEARNING_STORAGE_YAML
+            )
             learned_info = {
                 device: dacite.from_dict(
                     data_class=GoveeLearnedInfo, data=learned_dict[device]
@@ -59,7 +62,9 @@ class GoveeLearningStorage(GoveeAbstractLearningStorage):
     async def write(self, learned_info):
         """Save to yaml file."""
         leaned_dict = {device: asdict(learned_info[device]) for device in learned_info}
-        save_yaml(self._config_dir + LEARNING_STORAGE_YAML, leaned_dict)
+        await self._hass.async_add_executor_job(
+            save_yaml, self._config_dir + LEARNING_STORAGE_YAML, leaned_dict
+        )
         _LOGGER.info(
             "Stored learning information to %s.",
             self._config_dir + LEARNING_STORAGE_YAML,

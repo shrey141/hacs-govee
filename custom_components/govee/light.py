@@ -5,8 +5,8 @@ import logging
 
 from propcache import cached_property
 
-from govee_api import Govee, GoveeDevice, GoveeError
-from govee_api.govee_dtos import GoveeSource
+from .govee_api import Govee, GoveeDevice, GoveeError
+from .govee_api.govee_dtos import GoveeSource
 
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,

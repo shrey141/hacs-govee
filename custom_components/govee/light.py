@@ -25,6 +25,8 @@ from .const import (
     CONF_USE_ASSUMED_STATE,
     COLOR_TEMP_KELVIN_MIN,
     COLOR_TEMP_KELVIN_MAX,
+    DEFAULT_POLL_INTERVAL,
+    RATE_LIMIT_DAILY,
 )
 
 
@@ -39,9 +41,28 @@ async def async_setup_entry(hass, entry, async_add_entities):
     hub = hass.data[DOMAIN]["hub"]
 
     # refresh
-    update_interval = timedelta(
-        seconds=options.get(CONF_DELAY, config.get(CONF_DELAY, 10))
+    configured_interval = options.get(
+        CONF_DELAY, config.get(CONF_DELAY, DEFAULT_POLL_INTERVAL)
     )
+
+    # Warn if the configured poll interval is too aggressive for the device count
+    device_count = len(hub.devices) or 1
+    # Safe minimum: ensure we don't exceed RATE_LIMIT_DAILY API calls/day
+    # Each poll cycle = device_count API calls
+    safe_min_interval = max(1, int((device_count * 86400) / RATE_LIMIT_DAILY))
+    if configured_interval < safe_min_interval:
+        _LOGGER.warning(
+            "Poll interval %ds is too aggressive for %d device(s). "
+            "Estimated %d API calls/day exceeds the %d daily limit. "
+            "Consider increasing the poll interval to at least %ds.",
+            configured_interval,
+            device_count,
+            int((86400 / configured_interval) * device_count),
+            RATE_LIMIT_DAILY,
+            safe_min_interval,
+        )
+
+    update_interval = timedelta(seconds=configured_interval)
     coordinator = GoveeDataUpdateCoordinator(
         hass, _LOGGER, update_interval=update_interval, config_entry=entry
     )
@@ -98,30 +119,32 @@ class GoveeDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update(self):
         """Fetch data."""
         self.logger.debug("_async_update")
-        if "govee" not in self.hass.data:
+        if DOMAIN not in self.hass.data:
             raise UpdateFailed("Govee instance not available")
         try:
             hub = self.hass.data[DOMAIN]["hub"]
 
             if not hub.online:
-                # when offline, check connection, this will set hub.online
-                await hub.check_connection()
+                # Instead of wasting an API call on check_connection(),
+                # just attempt the normal poll — it will set hub.online
+                # on success via _set_online(True) in the library.
+                self.logger.debug(
+                    "Hub is offline, will attempt normal poll to reconnect"
+                )
 
-            if hub.online:
-                # set global options to library
-                if self.config_offline_is_off:
-                    hub.config_offline_is_off = True
-                else:
-                    hub.config_offline_is_off = None  # allow override in learning info
+            # set global options to library
+            if self.config_offline_is_off:
+                hub.config_offline_is_off = True
+            else:
+                hub.config_offline_is_off = None  # allow override in learning info
 
-                # govee will change this to a single request in 2021
-                device_states = await hub.get_states()
-                for device in device_states:
-                    if device.error:
-                        self.logger.warning(
-                            "update failed for %s: %s", device.device, device.error
-                        )
-                return device_states
+            device_states = await hub.get_states()
+            for device in device_states:
+                if device.error:
+                    self.logger.warning(
+                        "update failed for %s: %s", device.device, device.error
+                    )
+            return device_states
         except GoveeError as ex:
             raise UpdateFailed(f"Exception on getting states: {ex}") from ex
 
@@ -149,7 +172,15 @@ class GoveeLightEntity(LightEntity):
 
     async def async_added_to_hass(self):
         """Connect to dispatcher listening for entity data notifications."""
-        self._coordinator.async_add_listener(self.async_write_ha_state)
+        self._unsub_listener = self._coordinator.async_add_listener(
+            self.async_write_ha_state
+        )
+
+    async def async_will_remove_from_hass(self):
+        """Disconnect from dispatcher."""
+        if self._unsub_listener:
+            self._unsub_listener()
+            self._unsub_listener = None
 
     @property
     def _state(self):
@@ -177,7 +208,7 @@ class GoveeLightEntity(LightEntity):
         _LOGGER.debug(
             "async_turn_on for Govee light %s, kwargs: %s", self._device.device, kwargs
         )
-        err = None
+        errors = []
 
         just_turn_on = True
         if ATTR_HS_COLOR in kwargs:
@@ -185,11 +216,15 @@ class GoveeLightEntity(LightEntity):
             just_turn_on = False
             col = color.color_hs_to_RGB(hs_color[0], hs_color[1])
             _, err = await self._hub.set_color(self._device, col)
+            if err:
+                errors.append(f"set_color: {err}")
         if ATTR_BRIGHTNESS in kwargs:
             brightness = kwargs.pop(ATTR_BRIGHTNESS)
             just_turn_on = False
             bright_set = brightness - 1
             _, err = await self._hub.set_brightness(self._device, bright_set)
+            if err:
+                errors.append(f"set_brightness: {err}")
         if ATTR_COLOR_TEMP_KELVIN in kwargs:
             color_temp = kwargs.pop(ATTR_COLOR_TEMP_KELVIN)
             just_turn_on = False
@@ -198,28 +233,37 @@ class GoveeLightEntity(LightEntity):
             elif color_temp < COLOR_TEMP_KELVIN_MIN:
                 color_temp = COLOR_TEMP_KELVIN_MIN
             _, err = await self._hub.set_color_temp(self._device, color_temp)
+            if err:
+                errors.append(f"set_color_temp: {err}")
 
         # if there is no known specific command - turn on
         if just_turn_on:
             _, err = await self._hub.turn_on(self._device)
+            if err:
+                errors.append(f"turn_on: {err}")
         # debug log unknown commands
         if kwargs:
             _LOGGER.debug(
                 "async_turn_on doesnt know how to handle kwargs: %s", repr(kwargs)
             )
         # warn on any error
-        if err:
+        if errors:
             _LOGGER.warning(
-                "async_turn_on failed with '%s' for %s, kwargs: %s",
-                err,
+                "async_turn_on failed with '%s' for %s",
+                "; ".join(errors),
                 self._device.device,
-                kwargs,
             )
 
     async def async_turn_off(self, **kwargs):
         """Turn device off."""
         _LOGGER.debug("async_turn_off for Govee light %s", self._device.device)
-        await self._hub.turn_off(self._device)
+        _, err = await self._hub.turn_off(self._device)
+        if err:
+            _LOGGER.warning(
+                "async_turn_off failed with '%s' for %s",
+                err,
+                self._device.device,
+            )
 
     @property
     def unique_id(self):
@@ -271,6 +315,8 @@ class GoveeLightEntity(LightEntity):
     @property
     def hs_color(self):
         """Return the hs color value."""
+        if not self._device.color:
+            return None
         return color.color_RGB_to_hs(
             self._device.color[0],
             self._device.color[1],
@@ -280,6 +326,8 @@ class GoveeLightEntity(LightEntity):
     @property
     def rgb_color(self):
         """Return the rgb color value."""
+        if not self._device.color:
+            return None
         return [
             self._device.color[0],
             self._device.color[1],
@@ -293,33 +341,19 @@ class GoveeLightEntity(LightEntity):
         return self._device.brightness + 1
 
     @property
-    def color_temp(self):
-        """Return the color_temp of the light."""
-        return self._device.color_temp
-
-    @property
     def min_color_temp_kelvin(self):
         """Return the coldest color_temp that this light supports."""
-        return COLOR_TEMP_KELVIN_MAX
+        return COLOR_TEMP_KELVIN_MIN
 
     @property
     def max_color_temp_kelvin(self):
         """Return the warmest color_temp that this light supports."""
-        return COLOR_TEMP_KELVIN_MIN
+        return COLOR_TEMP_KELVIN_MAX
 
     @property
     def extra_state_attributes(self):
         """Return the device state attributes."""
         return {
-            # rate limiting information on Govee API
-            "rate_limit_total": self._hub.rate_limit_total,
-            "rate_limit_remaining": self._hub.rate_limit_remaining,
-            "rate_limit_reset_seconds": round(self._hub.rate_limit_reset_seconds, 2),
-            "rate_limit_reset": datetime.fromtimestamp(
-                self._hub.rate_limit_reset
-            ).isoformat(),
-            "rate_limit_on": self._hub.rate_limit_on,
-            # general information
             "manufacturer": "Govee",
             "model": self._device.model,
         }

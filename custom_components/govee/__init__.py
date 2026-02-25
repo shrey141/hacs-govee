@@ -17,18 +17,11 @@ _LOGGER = logging.getLogger(__name__)
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
 # supported platforms
-PLATFORMS = ["light"]
-
-
-def setup(hass, config):
-    """This setup does nothing, we use the async setup."""
-    hass.states.set("govee.state", "setup called")
-    return True
+PLATFORMS = ["light", "sensor"]
 
 
 async def async_setup(hass: HomeAssistant, config: dict):
     """Set up the Govee component."""
-    hass.states.async_set("govee.state", "async_setup called")
     hass.data[DOMAIN] = {}
     return True
 
@@ -93,13 +86,15 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     return unload_ok
 
 
-def _unload_component_entry(
+async def _unload_component_entry(
     hass: HomeAssistant, entry: ConfigEntry, component: str
 ) -> bool:
     """Unload an entry for a specific component."""
     success = False
     try:
-        success = hass.config_entries.async_forward_entry_unload(entry, component)
+        success = await hass.config_entries.async_forward_entry_unload(
+            entry, component
+        )
     except ValueError:
         # probably ValueError: Config entry was never loaded!
         return success

@@ -14,6 +14,7 @@ from .const import (
     CONF_DISABLE_ATTRIBUTE_UPDATES,
     CONF_OFFLINE_IS_OFF,
     CONF_USE_ASSUMED_STATE,
+    DEFAULT_POLL_INTERVAL,
     DOMAIN,
 )
 
@@ -51,7 +52,6 @@ async def validate_disabled_attribute_updates(hass: core.HomeAssistant, user_inp
     return user_input
 
 
-@config_entries.HANDLERS.register(DOMAIN)
 class GoveeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Govee."""
 
@@ -83,7 +83,7 @@ class GoveeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_API_KEY): cv.string,
-                    vol.Optional(CONF_DELAY, default=10): cv.positive_int,
+                    vol.Optional(CONF_DELAY, default=DEFAULT_POLL_INTERVAL): cv.positive_int,
                 }
             ),
             errors=errors,
@@ -93,7 +93,7 @@ class GoveeFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry):
         """Get the options flow."""
-        return GoveeOptionsFlowHandler(config_entry)
+        return GoveeOptionsFlowHandler()
 
 
 class GoveeOptionsFlowHandler(config_entries.OptionsFlow):
@@ -101,12 +101,13 @@ class GoveeOptionsFlowHandler(config_entries.OptionsFlow):
 
     VERSION = 1
 
-    def __init__(self, config_entry):
+    def __init__(self):
         """Initialize options flow."""
-        self.options = dict(config_entry.options)
+        self.options = {}
 
     async def async_step_init(self, user_input=None):
         """Manage the options."""
+        self.options = dict(self.config_entry.options)
         return await self.async_step_user()
 
     async def async_step_user(self, user_input=None):
@@ -172,7 +173,8 @@ class GoveeOptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_DELAY,
                     default=self.config_entry.options.get(
-                        CONF_DELAY, self.config_entry.data.get(CONF_DELAY, 10)
+                        CONF_DELAY,
+                        self.config_entry.data.get(CONF_DELAY, DEFAULT_POLL_INTERVAL),
                     ),
                 ): cv.positive_int,
                 # to options flow

@@ -173,8 +173,8 @@ class GoveeApi(object):
                 limit_unknown = False
             except Exception as ex:
                 _LOGGER.warning(f"Error trying to get rate limits: {ex}")
-        if limit_unknown:
-            self._limit_remaining -= 1
+        # If no rate-limit headers were returned, don't blindly decrement —
+        # we have no basis for the count and it would drift negative over time.
 
     async def rate_limit_delay(self):
         """Delay a call when rate limiting is active."""

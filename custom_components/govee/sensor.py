@@ -51,7 +51,7 @@ class GoveeApiRateLimitSensor(SensorEntity):
     def native_value(self):
         """Return the remaining rate limit as the primary state."""
         remaining = self._hub.rate_limit_remaining
-        if isinstance(remaining, str):
+        if isinstance(remaining, str) or remaining < 0:
             return None
         return remaining
 
